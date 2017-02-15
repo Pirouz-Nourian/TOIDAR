@@ -1,0 +1,54 @@
+"""
+This is a component that allows you to generate a database connection string to be later used in Slingshot plugin
+"""
+
+version = 'v0.0.1'
+ghenv.Component.Message = version
+ghenv.Component.Name = "RS_CString.py"
+ghenv.Component.NickName = 'CString'
+ghenv.Component.Category = "RS"
+ghenv.Component.SubCategory = "0"
+
+#------------input------------
+
+import Grasshopper.Kernel as gh
+
+ghenv.Component.Params.Input[0].NickName = "driver"
+ghenv.Component.Params.Input[0].Description = "(optional) Driver used for database connection, default - PostgreSQL ODBC Driver(Unicode)"
+if not driver:
+    driver = 'PostgreSQL ODBC Driver(Unicode)'
+    
+ghenv.Component.Params.Input[1].NickName = "server"
+ghenv.Component.Params.Input[1].Description = "(optional) Database server, default - localhost"
+if not server:
+    server = 'localhost'
+    
+ghenv.Component.Params.Input[2].NickName = "port"
+ghenv.Component.Params.Input[2].Description = "(optional) Database connection port, default - 5432"
+if not port:
+    port = '5432'
+    
+ghenv.Component.Params.Input[3].NickName = "username"
+ghenv.Component.Params.Input[3].Description = "(optional) Username or User ID, default - postgres"
+if not username:
+    username = 'postgres'
+    
+ghenv.Component.Params.Input[4].NickName = "database"
+ghenv.Component.Params.Input[4].Description = "(optional) Database name, default - postgres"
+if not database:
+    database = 'postgres'
+    
+ghenv.Component.Params.Input[5].NickName = "password"
+ghenv.Component.Params.Input[5].Description = "Needs to be provided by the user"
+if not password:
+    w = gh.GH_RuntimeMessageLevel.Warning
+    ghenv.Component.AddRuntimeMessage(w, 'No password provided')
+    
+ #------------output------------
+    
+ghenv.Component.Params.Output[0].NickName = "CString"
+ghenv.Component.Params.Output[0].Description = "Connection String"
+
+#------------code------------
+
+CString = 'Driver={{{0}}}; Server={1}; Port={2}; Uid={3}; Database={4}; Pwd={5}; commandtimeout=20; Timeout=5'.format(driver, server, port, username, database, password)
