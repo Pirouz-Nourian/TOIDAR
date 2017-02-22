@@ -46,8 +46,8 @@ if not password:
     
  #------------output------------
     
-ghenv.Component.Params.Output[0].NickName = "CString"
-ghenv.Component.Params.Output[0].Description = "Connection String"
+ghenv.Component.Params.Output[1].NickName = "CString"
+ghenv.Component.Params.Output[1].Description = "Connection String"
 
 #------------code------------
 
