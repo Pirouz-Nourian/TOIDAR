@@ -67,7 +67,7 @@ public class Script_Instance : GH_ScriptInstance
   /// </summary>
   private void RunScript(Mesh M, double t, ref object A, ref object B)
   {
-    if (M == null | t <= 0)
+    if (M == null || t <= 0)
       return;
     M.FaceNormals.ComputeFaceNormals();
     List<MeshFace> The_Faces = new List<MeshFace>();
@@ -77,7 +77,7 @@ public class Script_Instance : GH_ScriptInstance
 
     for (int i = 0; i < M.Faces.Count; i++){
       int index = i;
-      if (Clusters.Count == 0 | Clusters.FindAll(x => x.Contains(index)).Count == 0) {
+      if (Clusters.Count == 0 || Clusters.FindAll(x => x.Contains(index)).Count == 0) {
         List<int> cluster = new List<int>();
         cluster.Add(i);
         for (int j = 0; j < M.Faces.AdjacentFaces(i).Length; j++){
