@@ -1,0 +1,154 @@
+using Rhino;
+using Rhino.Geometry;
+using Rhino.DocObjects;
+using Rhino.Collections;
+
+using GH_IO;
+using GH_IO.Serialization;
+using Grasshopper;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
+
+using System;
+using System.IO;
+using System.Xml;
+using System.Xml.Linq;
+using System.Linq;
+using System.Data;
+using System.Drawing;
+using System.Reflection;
+using System.Collections;
+using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+
+
+/// <summary>
+/// This class will be instantiated on demand by the Script component.
+/// </summary>
+public class Script_Instance : GH_ScriptInstance
+{
+#region Utility functions
+  /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="text">String to print.</param>
+  private void Print(string text) { /* Implementation hidden. */ }
+  /// <summary>Print a formatted String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="format">String format.</param>
+  /// <param name="args">Formatting parameters.</param>
+  private void Print(string format, params object[] args) { /* Implementation hidden. */ }
+  /// <summary>Print useful information about an object instance to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj) { /* Implementation hidden. */ }
+  /// <summary>Print the signatures of all the overloads of a specific method to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj, string method_name) { /* Implementation hidden. */ }
+#endregion
+
+#region Members
+  /// <summary>Gets the current Rhino document.</summary>
+  private readonly RhinoDoc RhinoDocument;
+  /// <summary>Gets the Grasshopper document that owns this script.</summary>
+  private readonly GH_Document GrasshopperDocument;
+  /// <summary>Gets the Grasshopper script component that owns this script.</summary>
+  private readonly IGH_Component Component;
+  /// <summary>
+  /// Gets the current iteration count. The first call to RunScript() is associated with Iteration==0.
+  /// Any subsequent call within the same solution will increment the Iteration count.
+  /// </summary>
+  private readonly int Iteration;
+#endregion
+
+  /// <summary>
+  /// This procedure contains the user code. Input parameters are provided as regular arguments,
+  /// Output parameters as ref arguments. You don't have to assign output parameters,
+  /// they will have a default value.
+  /// </summary>
+  private void RunScript(Mesh M, double t, ref object A, ref object B)
+  {
+    if (M == null | t <= 0)
+      return;
+    M.FaceNormals.ComputeFaceNormals();
+    List<MeshFace> The_Faces = new List<MeshFace>();
+    The_Faces.AddRange(M.Faces);
+    List<List<int>> Clusters = new List<List<int>>();
+    List<Mesh> Segments = new List<Mesh>();
+
+    for (int i = 0; i < M.Faces.Count; i++){
+      int index = i;
+      if (Clusters.Count == 0 | Clusters.FindAll(x => x.Contains(index)).Count == 0) {
+        List<int> cluster = new List<int>();
+        cluster.Add(i);
+        for (int j = 0; j < M.Faces.AdjacentFaces(i).Length; j++){
+          int address = M.Faces.AdjacentFaces(i)[j];
+          if (IsSimilar(M.FaceNormals[i], M.FaceNormals[address], t))
+            cluster.Add(address);
+        }
+        cluster = GrowRegion(M, cluster, t);
+        Clusters.Add(cluster);
+      }
+    }
+    Color[] rainbow = RainbowColors(Clusters.Count);
+    for (int l = 0; l < Clusters.Count;l++){
+      Mesh Segment = new Mesh();
+      Segment.Vertices.AddVertices(M.Vertices);
+      for (int k = 0; k < Clusters[l].Count;k++){
+        Segment.Faces.AddFace(M.Faces[Clusters[l][k]]);
+      }
+      Segment.VertexColors.CreateMonotoneMesh(rainbow[l]);
+      Segments.Add(Segment);
+    }
+
+    A = LOLtoTree(Clusters);
+    B = Segments;//RainbowColors(Clusters.Count);
+
+  }
+
+  // <Custom additional code> 
+  //  public Color[] RainbowColors(int n){
+  //  Grasshopper.Kernel.Components.
+  //  }
+  public Color[] RainbowColors(int n)
+  {
+    Grasshopper.GUI.Gradient.GH_Gradient GHG = default(Grasshopper.GUI.Gradient.GH_Gradient);
+    GHG = Grasshopper.GUI.Gradient.GH_Gradient.Spectrum();
+    GHG.Linear = true;
+    Color[] cols = new Color[n];
+    for (int k = 0; k < n; k++) {
+      cols[k] = GHG.ColourAt((double) ((double) k / n));
+    }
+    return cols;
+  }
+  public List<int> GrowRegion(Mesh M, List<int> FaceRegion, double tol)
+  {
+    List<int> indices = new List<int>();
+    indices.AddRange(FaceRegion);
+    foreach (int index in FaceRegion) {
+      for (int k = 0; k < M.Faces.AdjacentFaces(index).Length; k++){
+        int address = M.Faces.AdjacentFaces(index)[k];
+        if (!indices.Contains(address) && !FaceRegion.Contains(address) && IsSimilar(M.FaceNormals[index], M.FaceNormals[address], tol)) {
+          indices.Add(address);
+          indices = GrowRegion(M, indices, tol);
+        }
+      }
+    }
+    return indices;
+  }
+  public bool IsSimilar(Vector3f a, Vector3f b, double tol)
+  {
+    if (Math.Acos(Math.Abs(a.X * b.X + a.Y * b.Y + a.Z * b.Z)) < ((Math.PI * tol) / 180)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  public DataTree<int> LOLtoTree(List<List<int>> LoL)
+  {
+    DataTree<int> Tree = new DataTree<int>();
+    for (int i = 0; i < LoL.Count; i++) {
+      Tree.EnsurePath(i);
+      Tree.Branch(i).AddRange(LoL[i]);
+    }
+    return Tree;
+  }
