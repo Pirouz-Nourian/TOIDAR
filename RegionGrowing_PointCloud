@@ -1,0 +1,129 @@
+using Rhino;
+using Rhino.Geometry;
+using Rhino.DocObjects;
+using Rhino.Collections;
+
+using GH_IO;
+using GH_IO.Serialization;
+using Grasshopper;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
+
+using System;
+using System.IO;
+using System.Xml;
+using System.Xml.Linq;
+using System.Linq;
+using System.Data;
+using System.Drawing;
+using System.Reflection;
+using System.Collections;
+using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+
+
+/// <summary>
+/// This class will be instantiated on demand by the Script component.
+/// </summary>
+public class Script_Instance : GH_ScriptInstance
+{
+#region Utility functions
+  /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="text">String to print.</param>
+  private void Print(string text) { /* Implementation hidden. */ }
+  /// <summary>Print a formatted String to the [Out] Parameter of the Script component.</summary>
+  /// <param name="format">String format.</param>
+  /// <param name="args">Formatting parameters.</param>
+  private void Print(string format, params object[] args) { /* Implementation hidden. */ }
+  /// <summary>Print useful information about an object instance to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj) { /* Implementation hidden. */ }
+  /// <summary>Print the signatures of all the overloads of a specific method to the [Out] Parameter of the Script component. </summary>
+  /// <param name="obj">Object instance to parse.</param>
+  private void Reflect(object obj, string method_name) { /* Implementation hidden. */ }
+#endregion
+
+#region Members
+  /// <summary>Gets the current Rhino document.</summary>
+  private readonly RhinoDoc RhinoDocument;
+  /// <summary>Gets the Grasshopper document that owns this script.</summary>
+  private readonly GH_Document GrasshopperDocument;
+  /// <summary>Gets the Grasshopper script component that owns this script.</summary>
+  private readonly IGH_Component Component;
+  /// <summary>
+  /// Gets the current iteration count. The first call to RunScript() is associated with Iteration==0.
+  /// Any subsequent call within the same solution will increment the Iteration count.
+  /// </summary>
+  private readonly int Iteration;
+#endregion
+
+  /// <summary>
+  /// This procedure contains the user code. Input parameters are provided as regular arguments,
+  /// Output parameters as ref arguments. You don't have to assign output parameters,
+  /// they will have a default value.
+  /// </summary>
+  private void RunScript(List<Vector3d> Normals, List<double> Curvature, double Curv_th, double Theta_th, System.Object Neighbors, ref object Segs, ref object D, ref object E)
+  {
+    //based on the paper SEGMENTATION OF POINT CLOUDS USING SMOOTHNESS CONSTRAINT http://www.isprs.org/proceedings/XXXVI/part5/paper/RABB_639.pdf
+    //T. Rabbani, F. A. van den Heuvel, G. Vosselman
+    //implemented in C# by Pirouz Nourian
+
+    Tuple<string, List<List<int>>> LoLNeighbors = (Tuple<string, List<List<int>>>) Neighbors;
+    List<List<int>> NeighborsIndices = LoLNeighbors.Item2;
+
+    List<List<int>> R = new List<List<int>>();
+    List<int> A = new List<int>();//Available Points
+    for(int i = 0;i < NeighborsIndices.Count;i++){A.Add(i);}
+    List<double> C=Curvature;//list of available curvature values
+
+    while(A.Count > 0){
+      List<int> CurrentRegion = new List<int>();
+      List<int> CurrentSeeds = new List<int>();
+      double minCurvature = C.Min();
+      if (minCurvature > Curv_th){break;}//break the vicious cycle!
+      int Pmin = -1;//index of point with minimum curvature, initialized as in invalid index
+      for(int lambda = 0;lambda < A.Count;lambda++){
+        if(C[A[lambda]] == minCurvature){
+          Pmin = A[lambda];
+          C[Pmin] = double.PositiveInfinity;//C.RemoveAt(lambda); in order to avoid choosing this curvature again
+          break;
+        }
+      }
+      CurrentSeeds.Add(Pmin);
+      CurrentRegion.Add(Pmin);
+      A.Remove(Pmin);
+      for(int i = 0;i < CurrentSeeds.Count;i++){
+        List<int> CurrentNeighbours = NeighborsIndices[CurrentSeeds[i]];//denoted as "B" in the paper: neighbors of the CurrentSeed
+        for(int j = 0;j < CurrentNeighbours.Count;j++){
+          int Pj = CurrentNeighbours[j];
+          if(A.Contains(Pj) && (Math.Acos(Vector3d.Multiply(Normals[CurrentSeeds[i]], Normals[Pj])) < Theta_th)){
+            CurrentRegion.Add(Pj);
+            int PjID = A.FindIndex(lambda => lambda == Pj);
+            A.RemoveAt(PjID);
+            if(C[Pj] < Curv_th){
+              CurrentSeeds.Add(Pj);
+            }
+            C[Pj] = double.PositiveInfinity;//C.RemoveAt(PjID); effectively removes this point from list of candidate seeds
+          }
+        }
+      }
+      R.Add(CurrentRegion);
+    }
+    Segs = LOLtoTree(R);
+  }
+
+  // <Custom additional code> 
+  public DataTree<int> LOLtoTree(List < List < int >> LoL) //only for visualization in GH
+  {
+    DataTree<int> Tree = new DataTree<int>();
+    for (int i = 0; i < LoL.Count; i++) {
+      Tree.EnsurePath(i);
+      Tree.Branch(i).AddRange(LoL[i]);
+    }
+    return Tree;
+  }
+  // </Custom additional code> 
+}
