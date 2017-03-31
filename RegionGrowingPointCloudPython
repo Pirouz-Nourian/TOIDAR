@@ -1,0 +1,106 @@
+import Rhino
+import math
+
+"""initialize the final region list"""
+Region = []
+
+"""Available points list"""
+A = []
+
+"""Curvature list"""
+C = residuals
+
+""" Create a list of available points:"""
+for i in range(0,len(pts)):
+    A.append(i)
+
+
+""" while list of available points is not empty:"""
+while len(A) > 0:
+
+    """ initialize Current Region list"""
+    Rc = []
+    """initialize Current Seed list:"""
+    Sc = []
+    """ Check for the minimum curvature (starting point):"""
+    Cmin = min(C)
+    
+    """if the min cuvature is larger than treshold:"""
+    if Cmin > Rtresshold:
+        break # break the viscous cirle
+        
+    """create an invalid index"""
+    Pmin = -1
+    """ for every point in list A:"""
+    for i in range(0,len(A)):
+        """ for the minimum curvature"""
+        if C[A[i]] == Cmin:
+            """ point with minumum curvature"""
+            Pmin = A[i]
+            """ set point of minumum curvature to big number (so that in the 
+            next iteration it is not the point with smallest curvature anymore).
+            """
+            C[Pmin] = 1
+            break
+            
+    """ append the point with minumum curvature to current seed list"""
+    Sc.append(Pmin)
+    
+    """ append the point with minumum curvature to the current region list"""
+    Rc.append(Pmin)
+    
+    """remove the point with miniumum curvature from the available points list
+    (so that it is not beeing visited in the next iteration)
+    """
+    A.remove(Pmin)
+    
+    """While current seed list is not empty:"""
+    while len(Sc) > 0:
+        
+        """neighbourhood of the first point in the seed list:"""
+        NN = Neighbours[Sc[0]]
+        
+        """for every point in neighbourhood:"""
+        for j in range(0,len(NN)):
+            
+            """neighbouring point:"""
+            Pj = NN[j]
+            
+            """
+            if the neighbouring point is still in available points list AND
+            the angle between its normal vector and the normal vector of the seed 
+            point is smaller than the Angle tresshold:
+            """
+            if Pj in A and math.acos(Rhino.Geometry.Vector3d.Multiply(Normals[Sc[0]], Normals[Pj])) < Atresshold:
+                #print Pj, 'point to add to seeds'
+                
+                """append neighbouring point to the Current Region list"""
+                Rc.append(Pj)
+                
+                """find its index in the available points list"""
+                PjID = A.index(Pj)
+                
+                """ remove the neighbouring point from the available points list"""
+                A.remove(A[PjID])
+                
+                """Check if the curvature of the neighbouring point is below the tresshold:"""
+                if C[Pj] < Rtresshold:
+                    
+                    """append the neighbouring point to the Current Seed list"""
+                    Sc.append(Pj) # seed list is growing
+                    
+                    #print Sc, 'seed list after added point'
+                    # set the curvature of the point to high value
+                    C[Pj] = 1
+       # print Sc[0], 'point to remove from Seeds'
+        """remove the first point (=seedpoint) in the seeds list"""
+        Sc.remove(Sc[0]) 
+        
+    """if current region contains more than 100 points:"""
+    if len(Rc) > 100:
+        
+        """Append the current region to the final region list"""
+        Region.append(Rc)
+
+segments = Region
+
