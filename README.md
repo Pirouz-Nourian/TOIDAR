@@ -1,5 +1,7 @@
 # TOIDAR
-Tools for processing LIDAR point clouds
+Educational Toys for processing LIDAR point clouds
+
+Here is a Technical Report following the workflow exemplified in TOIDAR for [Automated 3D reconstruction of buildings out of point clouds obtained from panoramic images](https://www.researchgate.net/publication/354271068_Automated_3D_reconstruction_of_buildings_out_of_point_clouds_obtained_from_panoramic_images_Technical_Report)
 
 TOIDAR by Pirouz Nourian is licensed under a Creative Commons Attribution 4.0 International License.
 Based on a work at https://github.com/Pirouz-Nourian/TOIDAR.
